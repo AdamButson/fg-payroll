@@ -58,7 +58,7 @@ for(const wo in visits){
  }
 }
 /* build grid (rows 2–22 of the pay tab) */
-const out=[];
+const out=[];const wkTot={},wkDays={};
 for(const {d,wos} of data){
  const wk=d.getDay()===0||d.getDay()===6;
  const amt=Object.fromEntries(COLS.map(c=>[c,''])),job=Object.fromEntries(COLS.map(c=>[c,'']));const notes=['',''];
@@ -69,10 +69,9 @@ for(const {d,wos} of data){
    const list=wos.filter(o=>rg.re.test(o.truck));let prod=0;const parts=[],rets=[];
    list.forEach(o=>{const pl=plan[o.wo];if(pl&&pl.prodKeys.has(key(d))){prod+=pl.share;parts.push(o.job+' '+$(pl.share)+(pl.n>1?' (1/'+pl.n+' of '+$(pl.amt)+')':''));}else rets.push(o.job);});
    const helperPay=rg.helper?(FLAT[rg.helper]||0):0;let n='';
-   if(prod>0){const net=r2(prod-helperPay);amt[rg.name]=Math.max(net,rg.floor||0);job[rg.name]=jobs(list);
+   if(prod>0){const net=r2(prod-helperPay);amt[rg.name]=Math.max(net,0);job[rg.name]=jobs(list);
     if(parts.length>1||parts.some(x=>x.includes('(1/')))n=parts.join(' + ');
-    if(helperPay)n=(n?n+'; ':'')+'prod '+$(r2(prod))+' − '+rg.helper+' '+$(helperPay);
-    if(net<(rg.floor||0))n=(n?n+' → ':'')+'floor'+(helperPay?'':' (prod '+$(r2(prod))+')');
+    if(helperPay)n=(n?n+'; ':'')+'prod '+$(r2(prod))+' − '+rg.helper+' '+$(helperPay)+(net<0?' → $0 (helper cost exceeded production)':'');
     if(rets.length)n+='; return trip '+rets.join('/')+' $0';}
    else if(rets.length){amt[rg.name]=0;job[rg.name]=jobs(list);n='return trip '+rets.join('/')+' – $0'+(rg.helper?', '+rg.helper+' day rate':'');}
    else{amt[rg.name]=0;job[rg.name]='Off';}
@@ -95,11 +94,17 @@ for(const {d,wos} of data){
   }
   notes[0]=parts.join('; ')+(skipped.length?(parts.length?'; ':'')+'NOT ASSIGNED: '+skipped.join('; '):'');
  }
+ COLS.forEach(c=>{if(typeof amt[c]==='number'){wkTot[c]=(wkTot[c]||0)+amt[c];wkDays[c]=(wkDays[c]||0)+1;}});
  const money=v=>v===''?'':$(v);
  out.push([DOW[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(),...COLS.map(c=>money(amt[c])),'S',notes[0]]);
  out.push(['Job Number',...COLS.map(c=>job[c]),'L',notes[1]]);
  out.push(['Allocation',...COLS.map(()=>wk?'Weekend':'Gainesville'),'','']);
 }
+/* day rates are checked against the WEEKLY daily average (same as the sheet's Daily averages row), not per day */
+const avgLines=RIGS.filter(rg=>rg.floor).map(rg=>{const tot=r2(wkTot[rg.name]||0),n=wkDays[rg.name]||0,avg=n?r2(tot/n):0;
+ return avg>=rg.floor?rg.name+': avg '+$(avg)+'/day over '+n+' days ✓ meets '+$(rg.floor)
+  :'⚠ '+rg.name+': avg '+$(avg)+'/day over '+n+' days — below '+$(rg.floor)+' day rate; short '+$(r2(rg.floor*n-tot))+' for the week';});
+review.unshift(...avgLines);
 const tsv=out.map(r=>r.join('\t')).join('\n');
 box.remove();
 if(window.__FGP_INPUT){window.__FGP_OUT=tsv+'\nREVIEW: '+review.join(' | ');return;}
