@@ -85,7 +85,7 @@ for(const {d,wos} of data){
   /* weekend crews are one-offs: ask who worked each job, split its labor evenly between them */
   const seen=new Set(),parts=[],skipped=[];
   for(const o of wos.filter(o=>o.amt>0&&!seen.has(o.wo)&&seen.add(o.wo))){
-   const q=DOW[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate()+': job '+o.job+' – '+$(o.amt)+' (scheduled on '+o.truck+')\nWho worked it? Names separated by commas, e.g. Luis, Miguel\nOptions: '+COLS.join(', ')+'\nLeave blank to skip.';
+   const q=DOW[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate()+': job '+o.job+' – '+$(o.amt)+' (scheduled on '+o.truck+')\nWho worked it? Names separated by commas, e.g. '+COLS.slice(0,2).join(', ')+'\nOptions: '+COLS.join(', ')+'\nLeave blank to skip.';
    const ans=window.__FGP_WEEKEND?(window.__FGP_WEEKEND[o.job]||''):(prompt(q,'')||'');
    const crew=ans.split(/[,&/]|\band\b/i).map(s=>s.trim().toLowerCase()).filter(Boolean).map(s=>COLS.find(c=>c.toLowerCase()===s)).filter(Boolean);
    if(!crew.length){skipped.push('job '+o.job+' '+$(o.amt)+' (on '+o.truck+')');continue;}
