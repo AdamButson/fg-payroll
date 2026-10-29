@@ -82,8 +82,18 @@ for(const {d,wos} of data){
   for(const k in TRUCKS){const js=wos.filter(o=>TRUCKS[k].test(o.truck));if(js.length)job[k]=jobs(js);}
   for(const k in RIDES)if(job[RIDES[k]])job[k]=job[RIDES[k]];
  }else if(wos.length){
-  const seen=new Set();
-  notes[0]='WEEKEND (enter crew by hand): '+wos.filter(o=>!seen.has(o.wo)&&seen.add(o.wo)).map(o=>'job '+o.job+' '+$(o.amt)+' → ÷2 '+$(r2(o.amt/2))+', ÷3 '+$(r2(o.amt/3))+' (scheduled on '+o.truck+')').join('; ');
+  /* weekend crews are one-offs: ask who worked each job, split its labor evenly between them */
+  const seen=new Set(),parts=[],skipped=[];
+  for(const o of wos.filter(o=>o.amt>0&&!seen.has(o.wo)&&seen.add(o.wo))){
+   const q=DOW[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate()+': job '+o.job+' – '+$(o.amt)+' (scheduled on '+o.truck+')\nWho worked it? Names separated by commas, e.g. Luis, Miguel\nOptions: '+COLS.join(', ')+'\nLeave blank to skip.';
+   const ans=window.__FGP_WEEKEND?(window.__FGP_WEEKEND[o.job]||''):(prompt(q,'')||'');
+   const crew=ans.split(/[,&/]|\band\b/i).map(s=>s.trim().toLowerCase()).filter(Boolean).map(s=>COLS.find(c=>c.toLowerCase()===s)).filter(Boolean);
+   if(!crew.length){skipped.push('job '+o.job+' '+$(o.amt)+' (on '+o.truck+')');continue;}
+   const each=Math.floor(o.amt*100/crew.length)/100,extra=r2(o.amt-each*crew.length);
+   crew.forEach((c,i)=>{amt[c]=r2((amt[c]||0)+each+(i===0?extra:0));job[c]=job[c]?job[c]+' / '+o.job:o.job;});
+   parts.push(o.job+' '+$(o.amt)+' ÷ '+crew.length+' ('+crew.join(', ')+')');
+  }
+  notes[0]=parts.join('; ')+(skipped.length?(parts.length?'; ':'')+'NOT ASSIGNED: '+skipped.join('; '):'');
  }
  const money=v=>v===''?'':$(v);
  out.push([DOW[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(),...COLS.map(c=>money(amt[c])),'S',notes[0]]);
